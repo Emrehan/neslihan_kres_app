@@ -1,14 +1,19 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:date_picker_timeline/date_picker_timeline.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:neslihan_kres/Repast.dart';
 
 import 'jsonManager.dart';
 import 'FoodInfo.dart';
+import 'notificationManager.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
   runApp(MyApp());
 }
 
@@ -43,6 +48,8 @@ class _MyHomePageState extends State<MyHomePage> {
   FoodInfo foodInfo = FoodInfo.valid(false);
   bool _busy = false;
 
+  Timer timer;
+
   void getFood(DateTime dt) async {
     setState(() {
       foodInfo = FoodInfo.valid(false);
@@ -61,11 +68,18 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+
     setState(() {
       _busy = true;
       getFood(DateTime.now());
       _busy = false;
     });
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -158,14 +172,15 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
       bottomSheet: Container(
-          child: Text(
-        "Menü etkinlik güncelerinde veya zorunlu durumlarda değişebilir.",
-        style: TextStyle(
-          fontSize: 14,
-          color: Colors.black38,
+        child: Text(
+          "Menü etkinlik güncelerinde veya zorunlu durumlarda değişebilir.",
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.black38,
+          ),
+          textAlign: TextAlign.center,
         ),
-        textAlign: TextAlign.center,
-      )),
+      ),
     );
   }
 }

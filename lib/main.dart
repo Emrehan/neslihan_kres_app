@@ -1,10 +1,7 @@
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:date_picker_timeline/date_picker_timeline.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 import 'package:neslihan_kres/Repast.dart';
 
 import 'jsonManager.dart';
@@ -33,6 +30,12 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
+  static final Color textColor = Color.fromARGB(255, 229, 227, 227);
+  static final Color textTextColor = Color.fromARGB(255, 20, 30, 20);
+  static final Color backColor = Color.fromARGB(255, 186, 171, 218);
+  static final Color foodBackground = Color.fromARGB(255, 180, 170, 210);
+  static final DateFormat formatter = DateFormat("EEEEE dd MMMMM");
+
   MyHomePage({Key key, this.title}) : super(key: key);
 
   final String title;
@@ -42,17 +45,26 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  DateTime _selectedValue;
-  DatePickerController dpc = new DatePickerController();
-
-  FoodInfo foodInfo = FoodInfo.valid(false);
+  DateTime _currentDate = DateTime.now();
+  FoodInfo foodInfo;
   bool _busy = false;
 
-  Timer timer;
+  @override
+  void initState() {
+    initializeDateFormatting("tr");
+
+    super.initState();
+
+    setState(() {
+      _busy = true;
+      getFood(DateTime.now());
+      _busy = false;
+    });
+  }
 
   void getFood(DateTime dt) async {
     setState(() {
-      foodInfo = FoodInfo.valid(false);
+      foodInfo = null;
       _busy = true;
     });
 
@@ -65,121 +77,174 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  @override
-  void initState() {
-    super.initState();
-
+  void increaseCurrentDateTime() {
     setState(() {
-      _busy = true;
-      getFood(DateTime.now());
-      _busy = false;
+      _currentDate = _currentDate.add(Duration(days: 1));
+      getFood(_currentDate);
     });
   }
 
-  @override
-  void dispose() {
-    timer?.cancel();
-    super.dispose();
+  void decreaseCurrentDateTime() {
+    setState(() {
+      _currentDate = _currentDate.add(Duration(days: -1));
+      getFood(_currentDate);
+    });
   }
 
+  bool swipedRight;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(Icons.home_outlined),
-            SizedBox(
-              width: 10,
-            ),
-            Text(
-              widget.title,
-            ),
-          ],
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Container(
-                    child: DatePicker(
-                      DateTime.now().add(Duration(days: -10)),
-                      initialSelectedDate: DateTime.now(),
-                      controller: dpc,
-                      selectionColor: Colors.blueAccent.withAlpha(100),
-                      selectedTextColor: Colors.blueAccent,
-                      onDateChange: (date) {
-                        // New date selected
-                        setState(() {
-                          _selectedValue = date;
-                          dpc.animateToDate((_selectedValue ?? DateTime.now())
-                              .add(Duration(days: -2)));
-
-                          getFood(date);
-                        });
-                      },
-                      daysCount: 40,
-                      locale: "tr_TR",
-                    ),
-                    width: MediaQuery.of(context).size.width * 0.8,
+      body: GestureDetector(
+        onPanUpdate: (details) {
+          swipedRight = details.delta.dx < 0 ? false : true;
+        },
+        onPanEnd: (details) {
+          if (swipedRight)
+            decreaseCurrentDateTime();
+          else
+            increaseCurrentDateTime();
+        },
+        child: Container(
+          width: MediaQuery.of(context).size.width,
+          height: MediaQuery.of(context).size.height,
+          color: MyHomePage.backColor,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                Container(
+                  height: 290,
+                  child: Stack(
+                    alignment: AlignmentDirectional.bottomStart,
+                    children: [
+                      Image.asset("assets/food.png"),
+                      datePickerWidget(),
+                    ],
                   ),
-                  Container(
-                    child: IconButton(
-                      icon: Icon(Icons.today),
-                      onPressed: () {
-                        setState(() {
-                          _selectedValue = DateTime.now();
-                          dpc.animateToDate(
-                              (_selectedValue).add(Duration(days: -2)));
-                        });
-                      },
-                    ),
-                    width: MediaQuery.of(context).size.width * 0.2,
-                  )
-                ],
-              ),
-              _busy
-                  ? Center(
-                      child: SpinKitPulse(
-                        color: Colors.white54,
-                      ),
-                    )
-                  : !foodInfo.valid || foodInfo.info != ""
-                      ? Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Text(
-                            foodInfo.info != ""
-                                ? foodInfo.info
-                                : "Menü mevcut değil.",
-                            style: TextStyle(
-                              fontSize: 32,
-                              color: Colors.blueAccent,
-                            ),
-                          ),
-                        )
-                      : Column(
-                          children: [
-                            foodInfo.getWidget(RepastType.BREAKFAST),
-                            foodInfo.getWidget(RepastType.LUNCH),
-                            foodInfo.getWidget(RepastType.DINNER),
-                          ],
-                        ),
-            ],
+                ),
+                _busy ? WaitScreen() : FoodList()
+              ],
+            ),
           ),
         ),
       ),
       bottomSheet: Container(
-        child: Text(
-          "Menü etkinlik güncelerinde veya zorunlu durumlarda değişebilir.",
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.black38,
-          ),
-          textAlign: TextAlign.center,
+        color: MyHomePage.backColor,
+        height: foodInfo != null && foodInfo.info.isNotEmpty ? 80 : 30,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            foodInfo != null && foodInfo.info.isNotEmpty
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.face),
+                      SizedBox(width: 10),
+                      Text(
+                        foodInfo.info,
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  )
+                : SizedBox(width: 0),
+            Text(
+              "Menü etkinlik günlerinde veya zorunlu durumlarda değişebilir.",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.black38,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget datePickerWidget() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        IconButton(
+          icon: Icon(
+            Icons.arrow_left,
+            color: Colors.black87,
+          ),
+          onPressed: decreaseCurrentDateTime,
+        ),
+        Text(
+          (DateFormat("dd MMMM, EEEEE", "tr")).format(_currentDate),
+          style: TextStyle(
+            color: MyHomePage.textColor,
+            fontFamily: "Verdana",
+            fontSize: 18,
+            wordSpacing: 3,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        IconButton(
+          icon: Icon(
+            Icons.arrow_right,
+            color: Colors.black87,
+          ),
+          onPressed: increaseCurrentDateTime,
+        ),
+      ],
+    );
+  }
+
+  Widget FoodList() {
+    return foodInfo != null
+        ? Column(
+            children: [
+              foodInfo.getWidget(context, RepastType.BREAKFAST),
+              foodInfo.getWidget(context, RepastType.LUNCH),
+              foodInfo.getWidget(context, RepastType.DINNER),
+            ],
+          )
+        : Text(
+            "Menü mevcut değil.",
+            style: TextStyle(
+              fontSize: 24,
+              color: MyHomePage.textTextColor,
+            ),
+          );
+
+    /*
+  return
+
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Text(
+        foodInfo.info != ""
+            ? foodInfo.info
+            : "Menü mevcut değil.",
+        style: TextStyle(
+          fontSize: 24,
+          color: MyHomePage.textTextColor,
+        ),
+      ),
+    )
+    : Column(
+    children: [
+    foodInfo.getWidget(context, RepastType.BREAKFAST),
+    foodInfo.getWidget(context, RepastType.LUNCH),
+    foodInfo.getWidget(context, RepastType.DINNER),
+    ],
+    );*/
+  }
+}
+
+class WaitScreen extends StatelessWidget {
+  const WaitScreen({
+    Key key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SpinKitPulse(
+        color: Colors.white54,
       ),
     );
   }

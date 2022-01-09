@@ -3,28 +3,26 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:neslihan_kres/Repast.dart';
 
+import 'main.dart';
+
 class FoodInfo {
-  String breakfast = "";
-  String lunch = "";
-  String dinner = "";
-  String info = "";
+  String breakfast;
+  String lunch;
+  String dinner;
+  String info;
   DateTime date;
-  bool valid = true;
 
-  FoodInfo(this.breakfast, this.lunch, this.dinner, this.date, this.info);
-
-  FoodInfo.valid(bool valid) {
-    this.valid = valid;
+  FoodInfo({this.breakfast, this.lunch, this.dinner, this.date, this.info}) {
+    breakfast = "";
+    lunch = "";
+    dinner = "";
+    info = "";
+    date = DateTime.now();
   }
 
-  FoodInfo.onlyInfo(String info) {
-    this.valid = true;
-    this.info = info;
-  }
-
-  Widget getWidget(RepastType repastType) {
+  Widget getWidget(BuildContext context, RepastType repastType) {
     var repast = Repast.getRepast(repastType);
-    String content;
+    String content = "";
     switch (repastType) {
       case RepastType.BREAKFAST:
         content = breakfast;
@@ -36,36 +34,70 @@ class FoodInfo {
         content = dinner;
         break;
     }
-    content = utf8.decode(content.codeUnits);
+    content = content.isEmpty
+        ? "Öğün bilgisi mevcut değil."
+        : utf8.decode(content.codeUnits);
 
     return Padding(
-      padding: EdgeInsets.all(20),
-      child: Column(
-        children: [
-          Row(
+      padding: const EdgeInsets.all(8.0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16.0),
+        child: Container(
+          width: MediaQuery.of(context).size.width,
+          color: MyHomePage.foodBackground,
+          child: Row(
             children: [
-              Icon(
-                repast.icon,
-                size: 32,
-                color: Colors.blueAccent,
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(8.0),
+                    color: MyHomePage.backColor,
+                    child: Icon(
+                      repast.icon,
+                      color: MyHomePage.textTextColor,
+                      size: 30,
+                    ),
+                  ),
+                ),
               ),
-              SizedBox(
-                width: 15,
-              ),
-              Text(
-                repast.title,
-                style: TextStyle(fontSize: 32, color: Colors.blueAccent),
-              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      repast.title,
+                      textAlign: TextAlign.start,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: MyHomePage.textTextColor,
+                      ),
+                    ),
+                    SizedBox(
+                      height: 5,
+                    ),
+                    Container(
+                      width: MediaQuery.of(context).size.width * 0.7,
+                      child: Text(
+                        content,
+                        overflow: TextOverflow.clip,
+                        maxLines: 3,
+                        softWrap: true,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: MyHomePage.textTextColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
             ],
           ),
-          SizedBox(
-            height: 5,
-          ),
-          Text(
-            content,
-            style: TextStyle(fontSize: 18),
-          )
-        ],
+        ),
       ),
     );
   }

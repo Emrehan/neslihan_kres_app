@@ -13,23 +13,19 @@ class JsonManager {
       var result = await http.read(url + formatted);
       Map<String, dynamic> json = jsonDecode(result);
 
-      if (json.containsKey("breakfast") &&
-          json.containsKey("lunch") &&
-          json.containsKey("dinner")) {
-        String info = "";
-        if (json.containsKey("info")) {
-          info = json["info"];
-        }
+      FoodInfo foodInfo = FoodInfo();
 
-        return FoodInfo(
-            json['breakfast'], json['lunch'], json['dinner'], dt, info);
-      } else if (json.containsKey("info")) {
-        return FoodInfo.onlyInfo(json["info"]);
-      } else {
-        return FoodInfo.valid(false);
-      }
+      if (json.containsKey("breakfast")) foodInfo.breakfast = json['breakfast'];
+
+      if (json.containsKey("lunch")) foodInfo.lunch = json['lunch'];
+
+      if (json.containsKey("dinner")) foodInfo.dinner = json['dinner'];
+
+      if (json.containsKey("info")) foodInfo.info = json['info'];
+
+      return foodInfo;
     } on Exception {
-      return FoodInfo.valid(false);
+      return null;
     }
   }
 }
